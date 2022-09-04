@@ -103,7 +103,7 @@
      * @version 2015.11.2
      */
 
-    var map, districtBoundary, placeSearch, autocomplete, mapCheck, dbCheck;
+    var map, districtBoundary, autocomplete, mapCheck, dbCheck;
     var marker;
     var mobile;
     var mapCenter = {lat: 42.5719205, lng: -83.3814459};
@@ -133,6 +133,7 @@
         map.setZoom(mapZoom);
     }
 
+    // noinspection JSUnusedGlobalSymbols
     function initialize() {
         // Determine whether the window is viewed in a narrow mobile format, and set widths and heights appropriately.
         outputLeft.innerHTML = "";
@@ -742,7 +743,6 @@
             fillOpacity: 0.35
         });
         districtBoundary.setMap(map);
-        var geocoder = new google.maps.Geocoder();
         // Create the autocomplete object, restricting the search to geographical
         // location types.
         autocomplete = new google.maps.places.Autocomplete(
@@ -762,7 +762,7 @@
         // Get the place details from the autocomplete object.
         var place = autocomplete.getPlace();
         // If no street number is provided, ask for a valid address.
-        if (place.address_components[0]["types"][0] != "street_number") {
+        if (place.address_components[0]["types"][0] !== "street_number") {
             outputLeft.innerHTML = '<img src="alert.png" alt="alert" width="50" class="alert"><span class="alert">Please provide a valid address.</span>';
             return;
         }
@@ -772,8 +772,7 @@
         for (var i = 0; i < place.address_components.length; i++) {
             var addressType = place.address_components[i].types[0];
             if (componentForm.indexOf(addressType) > -1) {
-                var val = place.address_components[i];
-                parsedAddress[addressType] = val;
+                parsedAddress[addressType] = place.address_components[i];
             }
         }
         // Find out if the provided address is within the polygon.
@@ -798,6 +797,7 @@
 
     // Bias the autocomplete object to the user's geographical location,
     // as supplied by the browser's 'navigator.geolocation' object.
+    // noinspection JSUnusedGlobalSymbols
     function geolocate() {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(function (position) {
@@ -816,22 +816,19 @@
 
     // Search an address component for a given term.
     function isIncluded(needle, haystack) {
-        if (haystack["long_name"].indexOf(needle) > -1 || haystack["short_name"].indexOf(needle) > -1)
-            return true;
-        else
-            return false;
+        return haystack["long_name"].indexOf(needle) > -1 || haystack["short_name"].indexOf(needle) > -1;
     }
 
 
     // Parse the database file and determine whether the provided address is included.
     function parseFile() {
-        result = Papa.parse("StreetDatabase.csv", {
+        Papa.parse("StreetDatabase.csv", {
             download: true,
             complete: function (results) {
                 var data = results.data;
                 var streetFound, school, notes, parsedMin, parsedMax, parsedList, parsedInput;
                 // Output results of the map check.
-                outputLeft.innerHTML = '<span class="alert">Map Check: </span><img src="' + (mapCheck ? 'checked.png" alt="pass"' : 'cross.png" alt="fail"') + ' width="50" class="alert">' + (mobile ? "<br>" : "") + '<span class="alert"' + (mobile ? '' : ' style="padding-left:50px;"') + '>Database Check: </span>';
+                outputLeft.innerHTML = '<span class="alert">Map Check: </span><img ' + (mapCheck ? 'src="checked.png" alt="pass"' : 'src="cross.png" alt="fail"') + ' width="50" class="alert">' + (mobile ? "<br>" : "") + '<span class="alert"' + (mobile ? '' : ' style="padding-left:50px;"') + '>Database Check: </span>';
                 // Go through each row on the database.
                 for (var i = 1; i < data.length; i++) {
                     if (isIncluded(data[i][0], parsedAddress["route"]) && isIncluded(data[i][3], parsedAddress["postal_code"])) {
@@ -839,7 +836,10 @@
                         notes = data[i][4];
                         parsedMin = parseInt(data[i][5]);
                         parsedMax = parseInt(data[i][6]);
-                        parsedList = data[i][7].split(";");
+                        if (data[i][7] === "")
+                            parsedList = [];
+                        else
+                            parsedList = data[i][7].split(";");
                         parsedInput = {
                             long_name: parseInt(parsedAddress["street_number"]["long_name"]),
                             short_name: parseInt(parsedAddress["street_number"]["short_name"])
@@ -849,11 +849,11 @@
                         // 1) there are no minimum or maximum values and there is no list of values.
                         // 2) the house number is within the minimum and maximum values.
                         // 3) the house number is included in the list of house numbers.
-                        if (parsedList == "" && ((isNaN(parsedMin) && isNaN(parsedMax)) || (parsedMin <= parsedInput["long_name"] && parsedInput["long_name"] <= parsedMax) || (parsedMin <= parsedInput["short_name"] && parsedInput["short_name"] <= parsedMax))) {
+                        if (parsedList.length === 0 && ((isNaN(parsedMin) && isNaN(parsedMax)) || (parsedMin <= parsedInput["long_name"] && parsedInput["long_name"] <= parsedMax) || (parsedMin <= parsedInput["short_name"] && parsedInput["short_name"] <= parsedMax))) {
                             streetFound = true;
                             houseInside(school, notes);
                             break;
-                        } else if (parsedList != "") {
+                        } else if (parsedList.length > 0) {
                             for (var k = 0; k < parsedList.length; k++) {
                                 if (parsedList[k] == parsedInput["long_name"] || parsedList[k] == parsedInput["short_name"]) {
                                     streetFound = true;
@@ -868,7 +868,7 @@
                     houseNotFound();
                 }
                 // Determine whether both tests produced the same result.
-                if (mapCheck != dbCheck) {
+                if (mapCheck !== dbCheck) {
                     outputRight.innerHTML += '<p style="color:red;">Conflicting information. Please call the district to confirm.</p>';
                 }
                 document.getElementById('reset').style.visibility = 'visible';
@@ -881,19 +881,20 @@
     function houseInside(school, notes) {
         // Clean up the school and put it in HTML format.
         var elem2, middle, high;
-        if (school == "Doherty") {
+        if (school === "Doherty") {
             elem2 = "Sheiko Elementary School";
-        } else if (school == "Roosevelt") {
+        } else if (school === "Roosevelt") {
             elem2 = "Roosevelt Elementary School";
-        } else if (school == "Gretchko") {
+        } else if (school === "Gretchko") {
             elem2 = "Scotch Elementary School";
         }
         school += " Elementary School";
         middle = "West Bloomfield Middle School";
-        school = "<ul><li>Grades PK-2: " + school + "</li><li>3-5: " + elem2 + "</li><li>6-8: " + middle + "</li><li>9-12: West Bloomfield High School</li></ul>";
+        high = "West Bloomfield High School";
+        school = "<ul><li>Grades PK-2: " + school + "</li><li>3-5: " + elem2 + "</li><li>6-8: " + middle + "</li><li>9-12: " + high + "</li></ul>";
         dbCheck = true;
         // Show any notes that exist.
-        if (notes != "")
+        if (notes !== "")
             notes = '<p style="color:orange;">Notes: ' + notes + "</p>";
         outputLeft.innerHTML += '<img src="checked.png" alt="pass" width="50" class="alert">' + notes;
         outputRight.innerHTML = '<p id="result">Address ' + (mapCheck ? "confirmed" : "found in database") + '.</p>' + school;
